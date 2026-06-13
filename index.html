@@ -461,6 +461,21 @@
     }
 
     .hidden { display: none !important; }
+
+    .banner-licenca {
+      padding: 10px 16px;
+      font-size: 13px;
+      text-align: center;
+      font-weight: 500;
+      background: #FFFBF0;
+      color: #7A5A00;
+      border-bottom: 1px solid #FFE5A0;
+    }
+    .banner-licenca.urgente {
+      background: var(--vermelho);
+      color: var(--branco);
+      border-bottom: none;
+    }
   </style>
 </head>
 <body>
@@ -524,6 +539,8 @@
     </div>
     <button class="btn-sair" onclick="sair()">Sair</button>
   </div>
+
+  <div id="aviso-licenca"></div>
 
   <div class="conteudo">
 
@@ -801,9 +818,20 @@ async function entrar() {
     btn.disabled = false; btn.textContent = 'Entrar'; return;
   }
 
+  btn.disabled = false; btn.textContent = 'Entrar';
+
+  // ── Verifica validade da licença ──
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const validade = loja.validade ? new Date(loja.validade + 'T00:00:00') : null;
+  const bloqueado = loja.status === 'bloqueado' || (validade && validade < hoje);
+
+  if (bloqueado) {
+    mostrarErro('⛔ Acesso bloqueado. Sua assinatura está vencida. Entre em contato com o suporte para renovar.');
+    return;
+  }
+
   lojaAtual = loja;
   localStorage.setItem('cc_loja', JSON.stringify(loja));
-  btn.disabled = false; btn.textContent = 'Entrar';
   iniciarApp();
 }
 
@@ -815,12 +843,35 @@ function sair() {
 }
 
 // ═══════════════════════════════════════════
+//  LICENÇA / ASSINATURA
+// ═══════════════════════════════════════════
+const DIAS_AVISO = 5; // a partir de quantos dias antes mostra o aviso
+
+function mostrarAvisoLicenca() {
+  const el = document.getElementById('aviso-licenca');
+  el.innerHTML = '';
+  if (!lojaAtual.validade) return;
+
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const validade = new Date(lojaAtual.validade + 'T00:00:00');
+  const diffDias = Math.ceil((validade - hoje) / (1000*60*60*24));
+
+  if (diffDias <= 0) {
+    el.innerHTML = `<div class="banner-licenca urgente">⛔ Sua assinatura venceu. Renove para continuar usando o CorteCerto.</div>`;
+  } else if (diffDias <= DIAS_AVISO) {
+    el.innerHTML = `<div class="banner-licenca">⚠️ Sua assinatura vence em ${diffDias} dia${diffDias>1?'s':''} (${validade.toLocaleDateString('pt-BR')}). Entre em contato para renovar.</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════
 //  INICIAR APP
 // ═══════════════════════════════════════════
 async function iniciarApp() {
   document.getElementById('tela-login').style.display = 'none';
   document.getElementById('tela-app').style.display = 'flex';
   document.getElementById('nome-loja-top').textContent = lojaAtual.nome;
+
+  mostrarAvisoLicenca();
 
   const metasSalvas = localStorage.getItem('cc_metas_' + lojaAtual.id);
   if (metasSalvas) metas = JSON.parse(metasSalvas);
@@ -1170,10 +1221,28 @@ async function renderRelatorio() {
 // ═══════════════════════════════════════════
 //  AUTO-LOGIN
 // ═══════════════════════════════════════════
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   const salva = localStorage.getItem('cc_loja');
   if (salva) {
     lojaAtual = JSON.parse(salva);
+
+    // Revalida com o banco (admin pode ter alterado validade/status)
+    const { data: lojaAtualizada } = await db.from('lojas').select('*').eq('id', lojaAtual.id).maybeSingle();
+    if (lojaAtualizada) {
+      lojaAtual = lojaAtualizada;
+      localStorage.setItem('cc_loja', JSON.stringify(lojaAtual));
+
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const validade = lojaAtual.validade ? new Date(lojaAtual.validade + 'T00:00:00') : null;
+      const bloqueado = lojaAtual.status === 'bloqueado' || (validade && validade < hoje);
+
+      if (bloqueado) {
+        localStorage.removeItem('cc_loja');
+        lojaAtual = null;
+        mostrarErro('⛔ Acesso bloqueado. Sua assinatura está vencida. Entre em contato com o suporte para renovar.');
+        return;
+      }
+    }
     iniciarApp();
   }
 });
