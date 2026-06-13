@@ -786,7 +786,12 @@ async function cadastrar() {
 
   // Salva senha como hash simples (base64) — para produção real usar bcrypt no backend
   const senhaHash = btoa(senha + '_cc_salt_2024');
-  const { error } = await db.from('lojas').insert({ nome, email, senha_hash: senhaHash });
+  // Define 7 dias de teste grátis a partir do cadastro
+  const validadeInicial = new Date();
+  validadeInicial.setDate(validadeInicial.getDate() + 7);
+  const validadeStr = validadeInicial.toISOString().split('T')[0];
+
+  const { error } = await db.from('lojas').insert({ nome, email, senha_hash: senhaHash, validade: validadeStr, status: 'ativo' });
   if (error) { mostrarErro('Erro ao criar conta: ' + error.message); btn.disabled = false; btn.textContent = 'Criar conta'; return; }
 
   mostrarOk('✅ Conta criada! Agora entre com seu e-mail e senha.');
