@@ -749,7 +749,10 @@ const CORTES = {
 // ═══════════════════════════════════════════
 function mostrarAba(aba) {
   document.querySelectorAll('.tab-login').forEach(b => b.classList.remove('ativo'));
-  event.target.classList.add('ativo');
+  const alvo = (typeof event !== 'undefined' && event.target)
+    ? event.target
+    : document.querySelector(`.tab-login[onclick*="${aba}"]`);
+  if (alvo) alvo.classList.add('ativo');
   document.getElementById('form-entrar').classList.toggle('hidden', aba !== 'entrar');
   document.getElementById('form-cadastrar').classList.toggle('hidden', aba !== 'cadastrar');
   limparMsgs();
@@ -775,35 +778,35 @@ async function cadastrar() {
   const email = document.getElementById('cad-email').value.trim();
   const senha = document.getElementById('cad-senha').value;
   if (!nome || !email || !senha) { mostrarErro('Preencha todos os campos.'); return; }
-  if (senha.length < 6) { mostrarErro('Senha deve ter mínimo 6 caracteres.'); return; }
+  if (senha.length < 6) { mostrarErro('Senha deve ter minimo 6 caracteres.'); return; }
 
   const btn = document.getElementById('btn-cadastrar');
   btn.disabled = true; btn.textContent = 'Criando...';
 
-  // Verifica se email já existe
-  const { data: existe } = await db.from('lojas').select('id').eq('email', email).maybeSingle();
-  if (existe) { mostrarErro('Este e-mail já está cadastrado.'); btn.disabled = false; btn.textContent = 'Criar conta'; return; }
+  const { data, error } = await db.auth.signUp({
+    email,
+    password: senha,
+    options: { data: { nome } }
+  });
 
-  // Salva senha como hash simples (base64) — para produção real usar bcrypt no backend
-  const senhaHash = btoa(senha + '_cc_salt_2024');
-  // Define 7 dias de teste grátis a partir do cadastro
-  const validadeInicial = new Date();
-  validadeInicial.setDate(validadeInicial.getDate() + 7);
-  const validadeStr = validadeInicial.toISOString().split('T')[0];
+  if (error) {
+    mostrarErro('Erro ao criar conta: ' + error.message);
+    btn.disabled = false; btn.textContent = 'Criar conta';
+    return;
+  }
 
-  const { error } = await db.from('lojas').insert({ nome, email, senha_hash: senhaHash, validade: validadeStr, status: 'ativo' });
-  if (error) { mostrarErro('Erro ao criar conta: ' + error.message); btn.disabled = false; btn.textContent = 'Criar conta'; return; }
+  if (data.session) {
+    const ok = await carregarLojaDoUsuario();
+    btn.disabled = false; btn.textContent = 'Criar conta';
+    if (ok) { iniciarApp(); return; }
+  }
 
-  mostrarOk('✅ Conta criada! Agora entre com seu e-mail e senha.');
+  mostrarOk('Conta criada! Agora entre com seu e-mail e senha.');
   btn.disabled = false; btn.textContent = 'Criar conta';
   document.getElementById('cad-nome').value = '';
   document.getElementById('cad-email').value = '';
   document.getElementById('cad-senha').value = '';
   mostrarAba('entrar');
-  document.querySelectorAll('.tab-login')[0].classList.add('ativo');
-  document.querySelectorAll('.tab-login')[1].classList.remove('ativo');
-  document.getElementById('form-entrar').classList.remove('hidden');
-  document.getElementById('form-cadastrar').classList.add('hidden');
   document.getElementById('login-email').value = email;
 }
 
@@ -815,34 +818,55 @@ async function entrar() {
   const btn = document.getElementById('btn-entrar');
   btn.disabled = true; btn.textContent = 'Entrando...';
 
-  const senhaHash = btoa(senha + '_cc_salt_2024');
-  const { data: loja, error } = await db.from('lojas').select('*').eq('email', email).eq('senha_hash', senhaHash).maybeSingle();
+  const { error } = await db.auth.signInWithPassword({ email, password: senha });
 
-  if (error || !loja) {
+  if (error) {
     mostrarErro('E-mail ou senha incorretos.');
-    btn.disabled = false; btn.textContent = 'Entrar'; return;
+    btn.disabled = false; btn.textContent = 'Entrar';
+    return;
   }
 
+  const ok = await carregarLojaDoUsuario();
   btn.disabled = false; btn.textContent = 'Entrar';
+  if (ok) iniciarApp();
+}
 
-  // ── Verifica validade da licença ──
+async function carregarLojaDoUsuario() {
+  const { data: userData, error: userError } = await db.auth.getUser();
+  if (userError || !userData?.user) {
+    mostrarErro('Sessao expirada. Entre novamente.');
+    return false;
+  }
+
+  const { data: loja, error } = await db
+    .from('lojas')
+    .select('id,nome,email,validade,status,role,auth_user_id')
+    .eq('auth_user_id', userData.user.id)
+    .maybeSingle();
+
+  if (error || !loja) {
+    mostrarErro('Nao foi possivel localizar sua loja. Verifique se o cadastro foi concluido.');
+    return false;
+  }
+
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const validade = loja.validade ? new Date(loja.validade + 'T00:00:00') : null;
   const bloqueado = loja.status === 'bloqueado' || (validade && validade < hoje);
 
   if (bloqueado) {
-    mostrarErro('⛔ Acesso bloqueado. Sua assinatura está vencida. Entre em contato com o suporte para renovar.');
-    return;
+    await db.auth.signOut();
+    mostrarErro('Acesso bloqueado. Sua assinatura esta vencida. Entre em contato com o suporte para renovar.');
+    return false;
   }
 
   lojaAtual = loja;
-  localStorage.setItem('cc_loja', JSON.stringify(loja));
-  iniciarApp();
+  return true;
 }
 
-function sair() {
+async function sair() {
   lojaAtual = null;
-  localStorage.removeItem('cc_loja');
+  registros = [];
+  await db.auth.signOut();
   document.getElementById('tela-app').style.display = 'none';
   document.getElementById('tela-login').style.display = 'flex';
 }
@@ -1227,29 +1251,11 @@ async function renderRelatorio() {
 //  AUTO-LOGIN
 // ═══════════════════════════════════════════
 window.addEventListener('load', async () => {
-  const salva = localStorage.getItem('cc_loja');
-  if (salva) {
-    lojaAtual = JSON.parse(salva);
+  const { data } = await db.auth.getSession();
+  if (!data.session) return;
 
-    // Revalida com o banco (admin pode ter alterado validade/status)
-    const { data: lojaAtualizada } = await db.from('lojas').select('*').eq('id', lojaAtual.id).maybeSingle();
-    if (lojaAtualizada) {
-      lojaAtual = lojaAtualizada;
-      localStorage.setItem('cc_loja', JSON.stringify(lojaAtual));
-
-      const hoje = new Date(); hoje.setHours(0,0,0,0);
-      const validade = lojaAtual.validade ? new Date(lojaAtual.validade + 'T00:00:00') : null;
-      const bloqueado = lojaAtual.status === 'bloqueado' || (validade && validade < hoje);
-
-      if (bloqueado) {
-        localStorage.removeItem('cc_loja');
-        lojaAtual = null;
-        mostrarErro('⛔ Acesso bloqueado. Sua assinatura está vencida. Entre em contato com o suporte para renovar.');
-        return;
-      }
-    }
-    iniciarApp();
-  }
+  const ok = await carregarLojaDoUsuario();
+  if (ok) iniciarApp();
 });
 </script>
 </body>
