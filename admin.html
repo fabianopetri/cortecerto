@@ -3,279 +3,364 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CorteCerto — Painel Admin</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <title>CorteCerto - Painel Admin</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
-      --vermelho:#C8102E; --vermelho-escuro:#9B0D23; --creme:#FAF7F2; --creme-escuro:#F0EAE0;
-      --marrom:#3D1A0E; --marrom-medio:#7A3B24; --cinza:#8A8A8A; --cinza-claro:#E8E4DF;
-      --verde:#1A7A4A; --amarelo:#D4A017; --branco:#FFFFFF;
-      --sombra:0 4px 24px rgba(61,26,14,0.10); --radius:14px; --radius-sm:8px;
+      --vermelho:#C8102E;
+      --marrom:#3D1A0E;
+      --creme:#FAF7F2;
+      --cinza:#777;
+      --borda:#E8E4DF;
+      --verde:#1A7A4A;
+      --amarelo:#B7791F;
+      --branco:#fff;
     }
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:'DM Sans',sans-serif; background:var(--creme); color:var(--marrom); min-height:100vh; }
-
-    /* LOGIN ADMIN */
-    #tela-login-admin {
-      min-height:100vh; display:flex; align-items:center; justify-content:center;
-      background:var(--marrom); padding:24px;
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      font-family: Arial, sans-serif;
+      background:var(--creme);
+      color:var(--marrom);
     }
-    .box-admin {
-      background:var(--creme); border-radius:20px; padding:36px 32px;
-      width:100%; max-width:380px; box-shadow:0 8px 40px rgba(0,0,0,0.25);
+    .login {
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      background:var(--marrom);
     }
-    .box-admin h1 {
-      font-family:'Syne',sans-serif; font-size:24px; font-weight:800; color:var(--vermelho);
-      text-align:center; margin-bottom:4px;
+    .box, .wrap {
+      width:100%;
+      max-width:1040px;
+      margin:auto;
     }
-    .box-admin p { text-align:center; font-size:12px; color:var(--cinza); margin-bottom:24px; }
-    .campo { margin-bottom:14px; }
-    .campo label { display:block; font-size:11px; font-weight:500; color:var(--marrom-medio); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.5px; }
-    .campo input { width:100%; padding:12px 14px; border:1.5px solid var(--cinza-claro); border-radius:var(--radius-sm); font-size:15px; background:var(--branco); color:var(--marrom); }
-    .campo input:focus { outline:none; border-color:var(--vermelho); }
-    .btn { width:100%; padding:13px; background:var(--vermelho); color:var(--branco); border:none; border-radius:var(--radius-sm); font-family:'Syne',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:0.2s; }
-    .btn:hover { background:var(--vermelho-escuro); }
-    .msg-erro { background:#FFF0F2; border:1px solid #FFB3BC; color:var(--vermelho-escuro); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; margin-bottom:14px; display:none; }
-
-    /* PAINEL */
-    #painel { display:none; min-height:100vh; }
-    .topo {
-      background:var(--marrom); color:var(--branco); padding:16px 24px;
-      display:flex; justify-content:space-between; align-items:center;
-      position:sticky; top:0; z-index:10;
+    .card {
+      background:var(--branco);
+      border:1px solid var(--borda);
+      border-radius:10px;
+      padding:22px;
+      box-shadow:0 8px 30px rgba(0,0,0,.08);
     }
-    .topo h1 { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:#FF2D4A; }
-    .topo button { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:var(--branco); padding:6px 14px; border-radius:20px; font-size:13px; cursor:pointer; }
-
-    .conteudo { padding:20px; max-width:1000px; margin:0 auto; }
-    .resumo { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
-    .resumo-card { background:var(--branco); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--sombra); }
-    .resumo-card .num { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; }
-    .resumo-card .label { font-size:11px; color:var(--cinza); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
-    .num.vermelho { color:var(--vermelho); } .num.amarelo { color:var(--amarelo); } .num.verde { color:var(--verde); }
-
-    .lojas-wrap { display:flex; flex-direction:column; gap:10px; }
-    .loja-card {
-      background:var(--branco); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--sombra);
-      display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;
+    .login .card { max-width:420px; margin:auto; }
+    h1, h2 { margin:0 0 14px; }
+    label {
+      display:block;
+      font-size:12px;
+      font-weight:bold;
+      color:var(--cinza);
+      margin:12px 0 5px;
+      text-transform:uppercase;
     }
-    .loja-info h3 { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; }
-    .loja-info p { font-size:12px; color:var(--cinza); margin-top:2px; }
-    .loja-status { display:flex; align-items:center; gap:8px; }
-    .badge { font-size:11px; padding:4px 10px; border-radius:20px; font-weight:600; white-space:nowrap; }
-    .badge-verde { background:#E6F9EE; color:var(--verde); }
-    .badge-amarelo { background:#FFFBF0; color:#7A5A00; }
-    .badge-vermelho { background:#FFF0F2; color:var(--vermelho); }
-    .loja-acoes { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .loja-acoes input[type=date] {
-      padding:7px 10px; border:1.5px solid var(--cinza-claro); border-radius:6px; font-size:13px; font-family:'DM Sans',sans-serif;
+    input, select {
+      width:100%;
+      border:1px solid var(--borda);
+      border-radius:8px;
+      padding:11px;
+      font-size:15px;
     }
-    .btn-mini {
-      padding:7px 14px; border-radius:6px; border:none; font-size:12px; font-weight:600;
-      cursor:pointer; font-family:'DM Sans',sans-serif; transition:0.2s; white-space:nowrap;
+    button {
+      border:0;
+      border-radius:8px;
+      padding:10px 14px;
+      font-weight:bold;
+      cursor:pointer;
+      background:var(--vermelho);
+      color:white;
     }
-    .btn-renovar { background:var(--verde); color:var(--branco); }
-    .btn-renovar:hover { opacity:0.85; }
-    .btn-bloquear { background:var(--vermelho); color:var(--branco); }
-    .btn-bloquear:hover { opacity:0.85; }
-    .btn-desbloquear { background:var(--marrom); color:var(--branco); }
-    .filtros { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
-    .filtro-btn { padding:6px 14px; border-radius:20px; border:1.5px solid var(--cinza-claro); background:var(--branco); color:var(--cinza); font-size:13px; cursor:pointer; }
-    .filtro-btn.ativo { background:var(--vermelho); color:var(--branco); border-color:var(--vermelho); }
-    .vazio { text-align:center; padding:40px; color:var(--cinza); }
+    button.sec { background:var(--marrom); }
+    button.ghost { background:transparent; color:var(--marrom); border:1px solid var(--borda); }
+    .erro { display:none; color:var(--vermelho); margin-top:12px; font-size:14px; }
+    header {
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+      padding:18px 24px;
+      background:var(--branco);
+      border-bottom:1px solid var(--borda);
+    }
+    main { padding:24px; }
+    .grid {
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:12px;
+      margin-bottom:18px;
+    }
+    .metric {
+      background:var(--branco);
+      border:1px solid var(--borda);
+      border-radius:10px;
+      padding:16px;
+    }
+    .metric span { color:var(--cinza); font-size:12px; display:block; }
+    .metric strong { font-size:26px; }
+    .toolbar {
+      display:flex;
+      gap:10px;
+      margin-bottom:14px;
+      align-items:center;
+    }
+    table {
+      width:100%;
+      border-collapse:collapse;
+      background:var(--branco);
+      border:1px solid var(--borda);
+      border-radius:10px;
+      overflow:hidden;
+    }
+    th, td {
+      text-align:left;
+      padding:10px;
+      border-bottom:1px solid var(--borda);
+      font-size:14px;
+      vertical-align:middle;
+    }
+    th { background:#f6f2eb; font-size:12px; text-transform:uppercase; color:var(--cinza); }
+    tr:last-child td { border-bottom:0; }
+    .badge {
+      display:inline-block;
+      border-radius:999px;
+      padding:4px 8px;
+      font-size:12px;
+      font-weight:bold;
+    }
+    .ativo { color:var(--verde); background:#e8f5ee; }
+    .bloqueado, .vencido { color:var(--vermelho); background:#fde8eb; }
+    .vencendo { color:var(--amarelo); background:#fff3d6; }
+    .acoes { display:flex; flex-wrap:wrap; gap:6px; }
+    .acoes button { padding:7px 9px; font-size:12px; }
     .hidden { display:none !important; }
-
-    @media (max-width:600px) {
-      .loja-card { flex-direction:column; align-items:flex-start; }
-      .loja-acoes { width:100%; }
+    @media (max-width: 760px) {
+      .grid { grid-template-columns:1fr 1fr; }
+      table, thead, tbody, th, td, tr { display:block; }
+      thead { display:none; }
+      tr { border-bottom:1px solid var(--borda); padding:10px; }
+      td { border:0; padding:5px 0; }
+      .toolbar { flex-direction:column; align-items:stretch; }
     }
   </style>
 </head>
 <body>
-
-<!-- LOGIN ADMIN -->
-<div id="tela-login-admin">
-  <div class="box-admin">
-    <h1>🥩 CorteCerto</h1>
-    <p>Painel administrativo</p>
-    <div id="msg-erro" class="msg-erro"></div>
-    <div class="campo">
-      <label>Senha de administrador</label>
-      <input type="password" id="admin-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')entrarAdmin()" />
+  <section id="login" class="login">
+    <div class="card">
+      <h1>CorteCerto Admin</h1>
+      <p>Entre com o usuario administrador do Supabase Auth.</p>
+      <label>E-mail</label>
+      <input id="email" type="email" autocomplete="username" />
+      <label>Senha</label>
+      <input id="senha" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')entrar()" />
+      <div style="margin-top:16px"><button onclick="entrar()" id="btn-login">Entrar</button></div>
+      <div id="erro" class="erro"></div>
     </div>
-    <button class="btn" onclick="entrarAdmin()">Entrar</button>
-  </div>
-</div>
+  </section>
 
-<!-- PAINEL -->
-<div id="painel">
-  <div class="topo">
-    <h1>🥩 CorteCerto — Admin</h1>
-    <button onclick="sairAdmin()">Sair</button>
-  </div>
-
-  <div class="conteudo">
-    <div class="resumo">
-      <div class="resumo-card"><div class="num" id="r-total">—</div><div class="label">Lojas cadastradas</div></div>
-      <div class="resumo-card"><div class="num verde" id="r-ativas">—</div><div class="label">Ativas</div></div>
-      <div class="resumo-card"><div class="num amarelo" id="r-vencendo">—</div><div class="label">Vencendo em 5 dias</div></div>
-      <div class="resumo-card"><div class="num vermelho" id="r-bloqueadas">—</div><div class="label">Bloqueadas/vencidas</div></div>
-    </div>
-
-    <div class="filtros">
-      <button class="filtro-btn ativo" onclick="filtrar('todas',this)">Todas</button>
-      <button class="filtro-btn" onclick="filtrar('ativas',this)">Ativas</button>
-      <button class="filtro-btn" onclick="filtrar('vencendo',this)">Vencendo</button>
-      <button class="filtro-btn" onclick="filtrar('bloqueadas',this)">Bloqueadas</button>
-    </div>
-
-    <div id="lojas" class="lojas-wrap"><div class="vazio">Carregando...</div></div>
-  </div>
-</div>
-
-<script>
-const SUPA_URL = 'https://eehvkoqtzxiqydfuibfv.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlaHZrb3F0enhpcXlkZnVpYmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTAzNzMsImV4cCI6MjA5NTY2NjM3M30.-_-gqTAywZxwDrVm7fumMPhrg7fk0q1t_Ig79NbqwjU';
-const { createClient } = supabase;
-const db = createClient(SUPA_URL, SUPA_KEY);
-
-// ⚠️ Troque esta senha! É a senha para você acessar o painel admin.
-const SENHA_ADMIN = 'cortecerto2025';
-
-let lojas = [];
-let filtroAtual = 'todas';
-
-function entrarAdmin() {
-  const senha = document.getElementById('admin-senha').value;
-  if (senha !== SENHA_ADMIN) {
-    const el = document.getElementById('msg-erro');
-    el.textContent = 'Senha incorreta.';
-    el.style.display = 'block';
-    return;
-  }
-  sessionStorage.setItem('cc_admin_ok', '1');
-  document.getElementById('tela-login-admin').style.display = 'none';
-  document.getElementById('painel').style.display = 'block';
-  carregarLojas();
-}
-
-function sairAdmin() {
-  sessionStorage.removeItem('cc_admin_ok');
-  document.getElementById('painel').style.display = 'none';
-  document.getElementById('tela-login-admin').style.display = 'flex';
-}
-
-function statusLoja(loja) {
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  if (loja.status === 'bloqueado') return 'bloqueada';
-  if (!loja.validade) return 'ativa';
-  const validade = new Date(loja.validade + 'T00:00:00');
-  const diffDias = Math.ceil((validade - hoje) / (1000*60*60*24));
-  if (diffDias < 0) return 'bloqueada';
-  if (diffDias <= 5) return 'vencendo';
-  return 'ativa';
-}
-
-async function carregarLojas() {
-  const { data, error } = await db.from('lojas').select('*').order('criado_em', { ascending: false });
-  if (error) { document.getElementById('lojas').innerHTML = '<div class="vazio">Erro ao carregar: ' + error.message + '</div>'; return; }
-  lojas = data || [];
-  atualizarResumo();
-  renderLojas();
-}
-
-function atualizarResumo() {
-  const total = lojas.length;
-  const ativas = lojas.filter(l => statusLoja(l) === 'ativa').length;
-  const vencendo = lojas.filter(l => statusLoja(l) === 'vencendo').length;
-  const bloqueadas = lojas.filter(l => statusLoja(l) === 'bloqueada').length;
-  document.getElementById('r-total').textContent = total;
-  document.getElementById('r-ativas').textContent = ativas;
-  document.getElementById('r-vencendo').textContent = vencendo;
-  document.getElementById('r-bloqueadas').textContent = bloqueadas;
-}
-
-function renderLojas() {
-  const el = document.getElementById('lojas');
-  let lista = lojas;
-  if (filtroAtual === 'ativas') lista = lojas.filter(l => statusLoja(l) === 'ativa');
-  if (filtroAtual === 'vencendo') lista = lojas.filter(l => statusLoja(l) === 'vencendo');
-  if (filtroAtual === 'bloqueadas') lista = lojas.filter(l => statusLoja(l) === 'bloqueada');
-
-  if (!lista.length) { el.innerHTML = '<div class="vazio">Nenhuma loja encontrada.</div>'; return; }
-
-  el.innerHTML = lista.map(l => {
-    const st = statusLoja(l);
-    const badgeCls = st === 'ativa' ? 'badge-verde' : st === 'vencendo' ? 'badge-amarelo' : 'badge-vermelho';
-    const badgeTxt = st === 'ativa' ? 'Ativa' : st === 'vencendo' ? 'Vencendo' : 'Bloqueada';
-    const validadeFmt = l.validade ? new Date(l.validade + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem validade';
-
-    return `<div class="loja-card">
-      <div class="loja-info">
-        <h3>${l.nome}</h3>
-        <p>${l.email}</p>
-        <div class="loja-status" style="margin-top:6px">
-          <span class="badge ${badgeCls}">${badgeTxt}</span>
-          <span style="font-size:12px;color:var(--cinza)">Válido até: ${validadeFmt}</span>
-        </div>
+  <section id="painel" class="hidden">
+    <header>
+      <div>
+        <h2>Painel administrativo</h2>
+        <div id="admin-email" style="color:var(--cinza);font-size:13px"></div>
       </div>
-      <div class="loja-acoes">
-        <input type="date" id="data-${l.id}" value="${l.validade || ''}" />
-        <button class="btn-mini btn-renovar" onclick="renovar('${l.id}', 30)">+30 dias</button>
-        <button class="btn-mini btn-renovar" onclick="salvarData('${l.id}')">Salvar data</button>
-        ${l.status === 'bloqueado'
-          ? `<button class="btn-mini btn-desbloquear" onclick="desbloquear('${l.id}')">Desbloquear</button>`
-          : `<button class="btn-mini btn-bloquear" onclick="bloquear('${l.id}')">Bloquear</button>`}
+      <button class="ghost" onclick="sair()">Sair</button>
+    </header>
+    <main class="wrap">
+      <div class="grid">
+        <div class="metric"><span>Total</span><strong id="m-total">0</strong></div>
+        <div class="metric"><span>Ativas</span><strong id="m-ativas">0</strong></div>
+        <div class="metric"><span>Vencendo</span><strong id="m-vencendo">0</strong></div>
+        <div class="metric"><span>Bloqueadas/vencidas</span><strong id="m-bloq">0</strong></div>
       </div>
-    </div>`;
-  }).join('');
-}
 
-function filtrar(f, btn) {
-  filtroAtual = f;
-  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'));
-  btn.classList.add('ativo');
-  renderLojas();
-}
+      <div class="toolbar">
+        <input id="busca" placeholder="Buscar por loja ou e-mail" oninput="render()" />
+        <select id="filtro" onchange="render()">
+          <option value="todas">Todas</option>
+          <option value="ativo">Ativas</option>
+          <option value="vencendo">Vencendo</option>
+          <option value="bloqueado">Bloqueadas/vencidas</option>
+        </select>
+        <button class="sec" onclick="carregarLojas()">Atualizar</button>
+      </div>
 
-async function renovar(id, dias) {
-  const loja = lojas.find(l => l.id === id);
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  const base = loja.validade && new Date(loja.validade + 'T00:00:00') > hoje
-    ? new Date(loja.validade + 'T00:00:00')
-    : hoje;
-  base.setDate(base.getDate() + dias);
-  const novaData = base.toISOString().split('T')[0];
+      <table>
+        <thead>
+          <tr>
+            <th>Loja</th>
+            <th>E-mail</th>
+            <th>Validade</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody id="linhas"></tbody>
+      </table>
+    </main>
+  </section>
 
-  await db.from('lojas').update({ validade: novaData, status: 'ativo' }).eq('id', id);
-  await carregarLojas();
-}
+  <script>
+    const SUPA_URL = 'https://eehvkoqtzxiqydfuibfv.supabase.co';
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlaHZrb3F0enhpcXlkZnVpYmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTAzNzMsImV4cCI6MjA5NTY2NjM3M30.-_-gqTAywZxwDrVm7fumMPhrg7fk0q1t_Ig79NbqwjU';
+    const db = supabase.createClient(SUPA_URL, SUPA_KEY);
+    let lojas = [];
 
-async function salvarData(id) {
-  const novaData = document.getElementById('data-' + id).value;
-  if (!novaData) return;
-  await db.from('lojas').update({ validade: novaData }).eq('id', id);
-  await carregarLojas();
-}
+    function erro(msg) {
+      const el = document.getElementById('erro');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
 
-async function bloquear(id) {
-  if (!confirm('Bloquear o acesso desta loja imediatamente?')) return;
-  await db.from('lojas').update({ status: 'bloqueado' }).eq('id', id);
-  await carregarLojas();
-}
+    async function entrar() {
+      const email = document.getElementById('email').value.trim();
+      const senha = document.getElementById('senha').value;
+      const btn = document.getElementById('btn-login');
+      btn.disabled = true; btn.textContent = 'Entrando...';
 
-async function desbloquear(id) {
-  await db.from('lojas').update({ status: 'ativo' }).eq('id', id);
-  await carregarLojas();
-}
+      const { error } = await db.auth.signInWithPassword({ email, password: senha });
+      if (error) {
+        erro('E-mail ou senha incorretos.');
+        btn.disabled = false; btn.textContent = 'Entrar';
+        return;
+      }
 
-// Mantém login admin na sessão (até fechar a aba)
-if (sessionStorage.getItem('cc_admin_ok') === '1') {
-  document.getElementById('tela-login-admin').style.display = 'none';
-  document.getElementById('painel').style.display = 'block';
-  carregarLojas();
-}
-</script>
+      const ok = await validarAdmin();
+      btn.disabled = false; btn.textContent = 'Entrar';
+      if (ok) abrirPainel();
+    }
+
+    async function validarAdmin() {
+      const { data: userData } = await db.auth.getUser();
+      if (!userData?.user) return false;
+
+      const { data, error } = await db
+        .from('admin_users')
+        .select('auth_user_id,email')
+        .eq('auth_user_id', userData.user.id)
+        .maybeSingle();
+
+      if (error || !data) {
+        await db.auth.signOut();
+        erro('Usuario autenticado, mas sem permissao de administrador.');
+        return false;
+      }
+
+      document.getElementById('admin-email').textContent = data.email;
+      return true;
+    }
+
+    async function abrirPainel() {
+      document.getElementById('login').classList.add('hidden');
+      document.getElementById('painel').classList.remove('hidden');
+      await carregarLojas();
+    }
+
+    async function sair() {
+      await db.auth.signOut();
+      location.reload();
+    }
+
+    function statusLoja(loja) {
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const validade = loja.validade ? new Date(loja.validade + 'T00:00:00') : null;
+      if (loja.status === 'bloqueado') return 'bloqueado';
+      if (validade && validade < hoje) return 'vencido';
+      if (validade) {
+        const diff = Math.ceil((validade - hoje) / 86400000);
+        if (diff <= 5) return 'vencendo';
+      }
+      return 'ativo';
+    }
+
+    async function carregarLojas() {
+      const { data, error } = await db
+        .from('lojas')
+        .select('id,nome,email,validade,status,criado_em')
+        .order('criado_em', { ascending:false });
+
+      if (error) {
+        document.getElementById('linhas').innerHTML = `<tr><td colspan="5">Erro ao carregar: ${error.message}</td></tr>`;
+        return;
+      }
+      lojas = data || [];
+      render();
+    }
+
+    function render() {
+      const busca = document.getElementById('busca').value.toLowerCase();
+      const filtro = document.getElementById('filtro').value;
+      const resumo = { total: lojas.length, ativo:0, vencendo:0, bloq:0 };
+
+      lojas.forEach(l => {
+        const st = statusLoja(l);
+        if (st === 'ativo') resumo.ativo++;
+        else if (st === 'vencendo') resumo.vencendo++;
+        else resumo.bloq++;
+      });
+
+      document.getElementById('m-total').textContent = resumo.total;
+      document.getElementById('m-ativas').textContent = resumo.ativo;
+      document.getElementById('m-vencendo').textContent = resumo.vencendo;
+      document.getElementById('m-bloq').textContent = resumo.bloq;
+
+      const filtradas = lojas.filter(l => {
+        const st = statusLoja(l);
+        const passaBusca = !busca || `${l.nome} ${l.email}`.toLowerCase().includes(busca);
+        const passaFiltro = filtro === 'todas'
+          || (filtro === 'ativo' && st === 'ativo')
+          || (filtro === 'vencendo' && st === 'vencendo')
+          || (filtro === 'bloqueado' && ['bloqueado','vencido'].includes(st));
+        return passaBusca && passaFiltro;
+      });
+
+      document.getElementById('linhas').innerHTML = filtradas.map(l => {
+        const st = statusLoja(l);
+        const validade = l.validade || '';
+        return `<tr>
+          <td><strong>${l.nome || '-'}</strong></td>
+          <td>${l.email || '-'}</td>
+          <td><input type="date" value="${validade}" onchange="salvarData('${l.id}', this.value)" /></td>
+          <td><span class="badge ${st}">${st}</span></td>
+          <td class="acoes">
+            <button onclick="renovar('${l.id}',30)">+30 dias</button>
+            <button class="sec" onclick="bloquear('${l.id}')">Bloquear</button>
+            <button class="ghost" onclick="desbloquear('${l.id}')">Desbloquear</button>
+          </td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="5">Nenhuma loja encontrada.</td></tr>';
+    }
+
+    async function salvarData(id, validade) {
+      await db.from('lojas').update({ validade }).eq('id', id);
+      await carregarLojas();
+    }
+
+    async function renovar(id, dias) {
+      const loja = lojas.find(l => l.id === id);
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const base = loja.validade && new Date(loja.validade + 'T00:00:00') > hoje
+        ? new Date(loja.validade + 'T00:00:00')
+        : hoje;
+      base.setDate(base.getDate() + dias);
+      const validade = base.toISOString().split('T')[0];
+      await db.from('lojas').update({ validade, status:'ativo' }).eq('id', id);
+      await carregarLojas();
+    }
+
+    async function bloquear(id) {
+      if (!confirm('Bloquear o acesso desta loja?')) return;
+      await db.from('lojas').update({ status:'bloqueado' }).eq('id', id);
+      await carregarLojas();
+    }
+
+    async function desbloquear(id) {
+      await db.from('lojas').update({ status:'ativo' }).eq('id', id);
+      await carregarLojas();
+    }
+
+    window.addEventListener('load', async () => {
+      const { data } = await db.auth.getSession();
+      if (data.session && await validarAdmin()) abrirPainel();
+    });
+  </script>
 </body>
 </html>
